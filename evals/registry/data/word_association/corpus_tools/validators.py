@@ -8,7 +8,7 @@ import numpy as np
 from logger_config import logger
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), base_url=os.environ.get("OPENAI_URL"))
 
 CORRELATION_PROMPT_TEMPLATE = """Task: Estimate the degree of correlation between
  two provided strings. In your evaluation, consider not just direct links, but also indirect and subtle correlations.

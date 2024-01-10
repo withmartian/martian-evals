@@ -14,7 +14,7 @@ from evals.prompt.base import ChatCompletionPrompt, CompletionPrompt
 from evals.record import record_sampling
 from evals.registry import Registry
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), base_url=os.environ.get("OPENAI_URL"))
 
 
 def load_embeddings(embeddings_and_text_path: str):
