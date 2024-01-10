@@ -18,7 +18,11 @@ class LangChainCompletionResult(CompletionResult):
 
 class LangChainMathChainCompletionFn(CompletionFn):
     def __init__(self, **kwargs) -> None:
-        llm = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), base_url=os.environ.get("OPENAI_URL"), temperature=0)
+        llm = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+            base_url=os.environ.get("OPENAI_URL"),
+            temperature=0,
+        )
         self.llm_math = LLMMathChain(llm=llm)
 
     def __call__(self, prompt, **kwargs) -> LangChainCompletionResult:
