@@ -4,7 +4,7 @@ from typing import Literal
 
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), base_url=os.environ.get("OPENAI_URL"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 def is_system_msg(m: dict) -> bool:

@@ -21,7 +21,7 @@ from evals.api import CompletionResult
     ),
 )
 def openai_chatcompletion_create(*args, **kwargs):
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), base_url=os.environ.get("OPENAI_URL"))
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     return client.chat.completions.create(*args, **kwargs)
 
