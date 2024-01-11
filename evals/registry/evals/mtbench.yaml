@@ -3,7 +3,7 @@ mtbench:
   id: mtbench.dev.v0
   metrics: [accuracy]
 mtbench.dev.v0:
-  class: evals.elsuite.modelgraded.classify:ModelBasedClassify
+  class: evals.elsuite.modelgraded.classify_multiturn:ModelBasedClassify
   args:
     samples_jsonl: mtbench/samples.jsonl
     eval_type: cot_classify
@@ -13,7 +13,7 @@ mtbench-reference:
   id: mtbench-reference.dev.v0
   metrics: [accuracy]
 mtbench-reference.dev.v0:
-  class: evals.elsuite.modelgraded.classify:ModelBasedClassify
+  class: evals.elsuite.modelgraded.classify_multiturn:ModelBasedClassify
   args:
     samples_jsonl: mtbench/samples_references.jsonl
     eval_type: cot_classify

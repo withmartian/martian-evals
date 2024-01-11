@@ -18,11 +18,13 @@ class LangChainCompletionResult(CompletionResult):
 
 class LangChainMathChainCompletionFn(CompletionFn):
     def __init__(self, **kwargs) -> None:
-        llm = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), temperature=0)
+        llm = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+            temperature=0,
+        )
         self.llm_math = LLMMathChain(llm=llm)
 
     def __call__(self, prompt, **kwargs) -> LangChainCompletionResult:
-
         prompt = CompletionPrompt(prompt).to_formatted_prompt()
         response = self.llm_math.run(prompt)
         # The LangChain response comes with `Answer: ` ahead of this, let's strip it out

@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional, Union
 
 from openai import OpenAI
@@ -102,8 +103,8 @@ class OpenAIChatCompletionFn(CompletionFnSpec):
         extra_options: Optional[dict] = {},
     ):
         self.model = model
-        self.api_base = api_base
-        self.api_key = api_key
+        self.api_base = api_base or os.environ.get("OPENAI_URL")
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.n_ctx = n_ctx
         self.extra_options = extra_options
 
