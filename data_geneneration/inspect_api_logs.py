@@ -63,4 +63,5 @@ def main(folder_path):
 folder_path = '~/Desktop/ICML_router_benchmark_paper_data_records'
 expanded_user_path = os.path.expanduser(folder_path)
 df = main(expanded_user_path)
-print(df)
+# print(df)
+df.to_csv('~/Desktop/ICML_router_benchmark_paper_data_records.csv')
