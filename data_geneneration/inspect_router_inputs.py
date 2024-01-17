@@ -3,12 +3,14 @@ import glob
 import json
 import pandas as pd
 
+
 def find_jsonl_files(folder_path):
     """
     Traverse the directory and subdirectories for .jsonl files.
     Return a list of paths to these files.
     """
     return glob.glob(os.path.join(folder_path, '**/*.jsonl'), recursive=True)
+
 
 def parse_jsonl_file(file_path):
     """
@@ -28,6 +30,7 @@ def parse_jsonl_file(file_path):
                 continue
     return [], None
 
+
 def create_dataframe(data):
     """
     Use the aggregated data to create a pandas DataFrame.
@@ -45,6 +48,7 @@ def create_dataframe(data):
 
     return pd.DataFrame(df_list, columns=model_names)
 
+
 def main(folder_path):
     """
     Main function to execute the script.
@@ -59,9 +63,20 @@ def main(folder_path):
 
     return create_dataframe(data)
 
-# Example usage (replace with the actual folder path)
-folder_path = '~/Desktop/ICML_router_benchmark_paper_data_records'
-expanded_user_path = os.path.expanduser(folder_path)
-df = main(expanded_user_path)
-# print(df)
-df.to_csv('~/Desktop/ICML_router_benchmark_paper_data_records.csv')
+
+def generate_router_inputs_analysis(file_path: str):
+    """
+    Generate a DataFrame containing the information about the .jsonl files.
+    """
+    inputs_df = pd.read_pickle(file_path)
+    result_df = inputs_df.pivot_table(index='eval_name', columns='model_name', aggfunc='size', fill_value=0)
+    return result_df
+
+
+if __name__ == '__main__':
+    # Example usage (replace with the actual folder path)
+    folder_path = '~/Desktop/ICML_router_benchmark_paper_data_records'
+    expanded_user_path = os.path.expanduser(folder_path)
+    df = main(expanded_user_path)
+    # print(df)
+    df.to_csv('~/Desktop/ICML_router_benchmark_paper_data_records.csv')
