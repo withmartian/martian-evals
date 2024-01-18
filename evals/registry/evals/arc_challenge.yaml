@@ -3,7 +3,7 @@ arc-challenge:
   metrics: [accuracy]
 
 arc-challenge.dev.v0:
-  class: evals.elsuite.basic.match:Match
+  class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
     samples_jsonl: arc_challenge/samples_train.jsonl
 
@@ -12,15 +12,15 @@ arc-challenge-test:
   metrics: [accuracy]
 
 arc-challenge.test.v0:
-  class: evals.elsuite.basic.match:Match
+  class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
     samples_jsonl: arc_challenge/samples_test.jsonl
 
 arc-challenge-val:
-  id: arc-challenge.test.v0
+  id: arc-challenge.val.v0
   metrics: [accuracy]
 
 arc-challenge.val.v0:
-  class: evals.elsuite.basic.match:Match
+  class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
     samples_jsonl: arc_challenge/samples_validation.jsonl
