@@ -5,6 +5,6 @@ grade-school-math:
 grade-school-math.dev.v0:
   class: evals.elsuite.modelgraded.classify:ModelBasedClassify
   args:
-    samples_jsonl: grade-school-math/samples.jsonl
+    samples_jsonl: grade-school-math/samples_subsampled.jsonl
     eval_type: cot_classify
     modelgraded_spec: fact

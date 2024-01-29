@@ -5,7 +5,8 @@ arc-challenge:
 arc-challenge.dev.v0:
   class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
-    samples_jsonl: arc_challenge/samples_train.jsonl
+    samples_jsonl: arc_challenge/samples_train_subsampled.jsonl
+    max_tokens: 2048
 
 arc-challenge-test:
   id: arc-challenge.test.v0
@@ -14,7 +15,8 @@ arc-challenge-test:
 arc-challenge.test.v0:
   class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
-    samples_jsonl: arc_challenge/samples_test.jsonl
+    samples_jsonl: arc_challenge/samples_test_subsampled.jsonl
+    max_tokens: 2048
 
 arc-challenge-val:
   id: arc-challenge.val.v0
@@ -23,4 +25,5 @@ arc-challenge-val:
 arc-challenge.val.v0:
   class: evals.elsuite.basic.fuzzy_match:FuzzyMatch
   args:
-    samples_jsonl: arc_challenge/samples_validation.jsonl
+    samples_jsonl: arc_challenge/samples_validation_subsampled.jsonl
+    max_tokens: 2048

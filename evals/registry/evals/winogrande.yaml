@@ -5,4 +5,7 @@ winogrande:
 winogrande.dev.v0:
   class: evals.elsuite.basic.match:Match
   args:
-    samples_jsonl: winogrande/samples.jsonl
+    samples_jsonl: winogrande/samples_subsampled.jsonl
+    few_shot_jsonl: winogrande/samples_subsampled.jsonl
+    num_few_shot: 5
+    max_tokens: 2048

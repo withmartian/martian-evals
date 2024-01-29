@@ -5,6 +5,6 @@ mbpp:
 mbpp.dev.v0:
   class: evals.elsuite.modelgraded.classify:ModelBasedClassify
   args:
-    samples_jsonl: mbpp/samples.jsonl
+    samples_jsonl: mbpp/samples_subsampled.jsonl
     eval_type: cot_classify
     modelgraded_spec: mbpp
