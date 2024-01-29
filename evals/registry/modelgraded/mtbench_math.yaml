@@ -1,9 +1,11 @@
-mtbench_reference:
+mtbench_math:
   prompt: |-
-    Please act as an impartial judge and evaluate the quality of the response provided by an AI assistant to the user question displayed below.
-    Your evaluation should consider factors such as the helpfulness, relevance, accuracy, depth, creativity, and level of detail of the response.
-    You evaluation should focus on the assistant's answer to the second user question. Begin your evaluation by providing a short explanation.
-    Be as objective as possible. After providing your explanation, you must rate the response on a scale of 0 to 9 by strictly following this format: 
+    Please act as an impartial judge and evaluate the quality of the response provided by an AI assistant to the user question.
+    Your evaluation should consider correctness and helpfulness. You will be given a reference answer and the assistant's answer.
+    You evaluation should focus on the assistant's answer to the second question. 
+    Begin your evaluation by comparing the assistant's answer with the reference answer. 
+    Identify and correct any mistakes. Be as objective as possible. 
+    After providing your explanation, you must rate the response on a scale of 0 to 9 by strictly following this format:
     \"rating\", for example: \"5\".
     
     <|The Start of Reference Answer|>

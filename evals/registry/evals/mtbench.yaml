@@ -18,3 +18,13 @@ mtbench-reference.dev.v0:
     samples_jsonl: mtbench/samples_references.jsonl
     eval_type: cot_classify
     modelgraded_spec: mtbench_reference
+
+mtbench-math:
+  id: mtbench-math.dev.v0
+  metrics: [accuracy]
+mtbench-math.dev.v0:
+  class: evals.elsuite.modelgraded.classify_multiturn:ModelBasedClassify
+  args:
+    samples_jsonl: mtbench/samples_math.jsonl
+    eval_type: cot_classify
+    modelgraded_spec: mtbench_math
