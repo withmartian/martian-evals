@@ -23,20 +23,20 @@ def get_choices():
 def format_example(example, include_answer=True):
     prompt = example["question"]
     for j in range(4):
-        prompt += "\n{}) {}".format(get_choices()[j], example["choices"][j])
-    prompt += "\n"
+        prompt += "\n{}. {}".format(get_choices()[j], example["choices"][j])
+    prompt += "\nAnswer: "
     if include_answer:
-        prompt += " {}\n\n".format(get_choices()[example["answer"]])
+        prompt += "{}\n\n".format(get_choices()[example["answer"]])
     return prompt
 
 
 def format_example_hellaswag(example, include_answer=True):
     prompt = example["ctx"]
     for j in range(4):
-        prompt += "\n{}) {}".format(get_choices()[j], example["endings"][j])
-    prompt += "\n"
+        prompt += "\n{}. {}".format(get_choices()[j], example["endings"][j])
+    prompt += "\nAnswer: "
     if include_answer:
-        prompt += " {}\n\n".format(get_choices()[int(example["label"])])
+        prompt += "{}\n\n".format(get_choices()[int(example["label"])])
     return prompt
 
 
@@ -125,12 +125,14 @@ class MultipleChoice(evals.Eval):
 
         prompt = (
             self.instructions
-            + "\nPlease answer with the letter of the correct answer."
-            + "\n\n"
+            #+ "\nPlease answer with the letter of the correct answer."
+            #+ "\n\n"
             + sample.question
-            + "\n"
-            + options
+            #+ options
         )
+        for j in range(len(sample.answers)):
+            prompt += "\n{}. {}".format(get_choices()[j], sample.answers[j])
+        prompt += "\nAnswer: "
         result = self.completion_fn(
             prompt=prompt,
             temperature=0.0,
