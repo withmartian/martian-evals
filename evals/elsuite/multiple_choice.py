@@ -15,10 +15,18 @@ class Sample(BaseModel):
     question: str
     answers: list[str]
     label: int
+    kshot: Optional[str] = None
+    subject: Optional[str] = None
 
 def get_choices():
     return ["A", "B", "C", "D"]
 
+def format_subject(subject):
+    line = subject.split("_")
+    s = ""
+    for entry in line:
+        s += " " + entry
+    return s
 
 def format_example(example, include_answer=True):
     prompt = example["question"]
@@ -40,8 +48,8 @@ def format_example_hellaswag(example, include_answer=True):
     return prompt
 
 
-def gen_prompt(train_dataset, k=-1):
-    prompt = "The following are multiple choice questions (with answers).\n\n"
+def gen_prompt(train_dataset, subject, k=-1):
+    prompt = f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
     for i in range(k):
         prompt += format_example(next(train_dataset))
     return prompt
@@ -67,6 +75,15 @@ def get_dataset(url: str) -> list[Sample]:
         else:
             if query.get("split") == "validation":
                 query["split"] = "validation[:5%]"
+            subject = query.get("name")
+            kshot_query = {}
+            for key in query:
+                if key != "split":
+                    kshot_query[key] = query[key]
+            kshot_query["split"] = "dev"
+            kshot_data = load_dataset(path, **kshot_query)
+            kshot_prompt = gen_prompt(iter(kshot_data), subject=subject, k=5)
+
         dataset = load_dataset(path, **query)
 
         if path == "hellaswag":
@@ -84,6 +101,8 @@ def get_dataset(url: str) -> list[Sample]:
                     question=sample["question"],
                     answers=sample["choices"],
                     label=sample["answer"],
+                    subject=subject,
+                    kshot=kshot_prompt,
                 )
                 for sample in dataset
             ]
@@ -104,11 +123,7 @@ class MultipleChoice(evals.Eval):
         assert len(completion_fns) == 1, "MultipleChoice only supports one completion fn"
         self.dataset = dataset
         self.instructions = instructions
-        if "hendrycks" in self.dataset:
-            dataset = load_dataset("cais/mmlu", 'all', split="dev",)
-            # Has the same start at the defaultMMLU_MSG but with the 5 shot examples
-            self.instructions = gen_prompt(iter(dataset), k=5)
-        elif "hellaswag" in self.dataset:
+        if "hellaswag" in self.dataset:
             dataset = load_dataset("hellaswag", split="train")
             self.instructions = gen_prompt_hellaswag(iter(dataset), k=10)
         else:
@@ -124,7 +139,7 @@ class MultipleChoice(evals.Eval):
         )
 
         prompt = (
-            self.instructions
+            sample.kshot
             #+ "\nPlease answer with the letter of the correct answer."
             #+ "\n\n"
             + sample.question
