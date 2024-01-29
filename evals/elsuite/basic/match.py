@@ -5,6 +5,25 @@ import evals.metrics
 from evals.api import CompletionFn
 from evals.prompt.base import is_chat_prompt
 
+def get_choices():
+    return ["A", "B", "C", "D"]
+
+
+def format_example(example, include_answer=True):
+    prompt = example["question"]
+    for j in range(4):
+        prompt += "\n{}. {}".format(get_choices()[j], example["choices"]["text"][j])
+    prompt += "\n"
+    if include_answer:
+        prompt += " {}\n\n".format(example["answerKey"])
+    return prompt
+
+
+def gen_prompt(train_dataset, k=-1):
+    prompt = "The following are multiple choice questions (with answers).\n\n"
+    for i in range(k):
+        prompt += format_example(next(train_dataset))
+    return prompt
 
 class Match(evals.Eval):
     def __init__(
@@ -40,7 +59,11 @@ class Match(evals.Eval):
             assert is_chat_prompt(sample["input"]), "few shot requires chat prompt"
             prompt = sample["input"][:-1]
             for s in self.few_shot[: self.num_few_shot]:
-                prompt += s["sample"]
+                # Have to get the sample in the form from the jsonl
+                question = s["input"][1]["content"]
+                answer = s["ideal"]
+                prompt += [{"role": "user", "content": question + "\n" + answer + "\n"}]
+                #prompt += s["sample"]
             prompt += sample["input"][-1:]
 
         result = self.completion_fn(
