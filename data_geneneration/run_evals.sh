@@ -14,7 +14,7 @@ for model in "${openai_model_names[@]}"; do
 
         time_string=$(date "+%m-%d_%H:%M:%S")
         start_time=$(date +%s)
-        OPENAI_API_KEY=$REAL_OPENAI_KEY oaieval $model $eval --record_path=${data_path}/${model}__$eval.jsonl #  > /dev/null 2>&1
+        OPENAI_API_KEY=$REAL_OPENAI_API_KEY oaieval $model $eval --record_path=${data_path}/${model}__$eval.jsonl #  > /dev/null 2>&1
         # if error
         if [ $? -ne 0 ]; then
             echo "\nCommand failed:"
