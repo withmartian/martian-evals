@@ -4,6 +4,8 @@ Generic eval that uses a prompt + classification.
 from collections import Counter
 from random import Random
 from typing import Any, Optional, Union
+import copy
+import os
 
 import evals
 import evals.record
@@ -27,7 +29,14 @@ class ModelBasedClassify(evals.Eval):
     ):
         super().__init__(*args, **kwargs)
         # treat last completion_fn as eval_completion_fn
-        self.eval_completion_fn = self.completion_fns[-1]
+        # Set this to use GPT-4 for the eval_completion_fn
+        # Make a deepcopy of the completion_fns
+        self.eval_completion_fn = copy.deepcopy(self.completion_fns[-1])
+        self.eval_completion_fn.model = "gpt-4-1106-preview"
+        self.eval_completion_fn.api_base = "https://api.openai.com/v1"
+        self.eval_completion_fn.api_key = os.environ.get("REAL_OPENAI_API_KEY",
+                                                         None)
+
         if len(self.completion_fns) > 1:
             self.completion_fns = self.completion_fns[:-1]
         n_models = len(self.completion_fns)

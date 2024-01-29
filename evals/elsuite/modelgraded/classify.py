@@ -1,14 +1,17 @@
 """
 Generic eval that uses a prompt + classification.
 """
+import os
 from collections import Counter
 from random import Random
 from typing import Any, Optional, Union
+import copy
 
 import evals
 import evals.record
 from evals.elsuite.modelgraded.classify_utils import classify, sample_and_concat_n_completions
 from evals.elsuite.utils import PromptFn, scrub_formatting_from_prompt
+
 
 
 class ModelBasedClassify(evals.Eval):
@@ -27,7 +30,11 @@ class ModelBasedClassify(evals.Eval):
     ):
         super().__init__(*args, **kwargs)
         # treat last completion_fn as eval_completion_fn
-        self.eval_completion_fn = self.completion_fns[-1]
+        self.eval_completion_fn = copy.deepcopy(self.completion_fns[-1])
+        self.eval_completion_fn.model = "gpt-4-1106-preview"
+        self.eval_completion_fn.api_base = "https://api.openai.com/v1"
+        self.eval_completion_fn.api_key = os.environ.get("REAL_OPENAI_API_KEY",None)
+        # Get k-shot values for GSM-8k, get the first 5 examples, and include them as
         if len(self.completion_fns) > 1:
             self.completion_fns = self.completion_fns[:-1]
         n_models = len(self.completion_fns)
@@ -48,6 +55,7 @@ class ModelBasedClassify(evals.Eval):
         if len(self.completion_fns) > 1:
             assert self.multicomp_n == n_models
 
+        self.is_gsm8k = True if "grade-school-math" in self.samples_jsonl else False
         self.mg = self.registry.get_modelgraded_spec(modelgraded_spec)
 
     def eval_sample(self, test_sample: dict, rng: Random) -> None:
@@ -73,6 +81,10 @@ class ModelBasedClassify(evals.Eval):
                     n=self.multicomp_n,
                 )
             else:
+                # Add few shot to beginning of prompt for GSM-8k
+                if self.is_gsm8k:
+                    test_sample[k][0]["content"] += "\nThe following are examples of grade school math problems and answers:\n"
+                    test_sample[k][0]["content"] += "There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today? \n6\n\nIf there are 3 cars in the parking lot and 2 more cars arrive, how many cars are in the parking lot? \n5\n\nLeah had 32 chocolates and her sister had 42. If they ate 35, how many pieces do they have left in total? \n39\n\nJason had 20 lollipops. He gave Denny some lollipops. Now Jason has 12 lollipops. How many lollipops did Jason give to Denny?\n8\n\nShawn has five toys. For Christmas, he got two toys each from his mom and dad. How many toys does he have now? \n9\n\n"
                 get_input_completion = PromptFn(
                     test_sample[k], completion_fn=self.completion_fn, **self.sample_kwargs
                 )
