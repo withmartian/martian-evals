@@ -1,10 +1,30 @@
 import numpy as np
+from datasets import load_dataset
 
 import evals
 from evals.api import CompletionFn
 from evals.elsuite import utils
 from evals.record import RecorderBase
 
+def get_choices():
+    return ["A", "B", "C", "D"]
+
+
+def format_example(example, include_answer=True):
+    prompt = example["question"]
+    for j in range(4):
+        prompt += "\n{}. {}".format(get_choices()[j], example["choices"]["text"][j])
+    prompt += "\n"
+    if include_answer:
+        prompt += " {}\n\n".format(example["answerKey"])
+    return prompt
+
+
+def gen_prompt(train_dataset, k=-1):
+    prompt = "The following are multiple choice questions (with answers).\n\n"
+    for i in range(k):
+        prompt += format_example(next(train_dataset))
+    return prompt
 
 class FuzzyMatch(evals.Eval):
     def __init__(
@@ -18,6 +38,10 @@ class FuzzyMatch(evals.Eval):
         super().__init__(completion_fns, *args, **kwargs)
         assert len(completion_fns) == 1, "FuzzyMatch only supports one completion fn"
         self.max_tokens = max_tokens
+        # Do it manually for each of the specific ones
+        if "arc_challenge" in samples_jsonl:
+            self.k_shot = load_dataset("ai2_arc", "ARC-Easy")
+            self.kshot_prompt = "\n\n" + gen_prompt(iter(self.k_shot["train"]), k=25)
         self.samples_jsonl = samples_jsonl
 
     def eval_sample(self, test_sample, rng):
@@ -28,6 +52,10 @@ class FuzzyMatch(evals.Eval):
         assert "ideal" in test_sample, "sample must have an 'ideal' key"
 
         prompt, correct_answers = test_sample["input"], test_sample["ideal"]
+        # Add the 25 examples to the prompt, if arc challenge in samples_jsonl
+        if "arc_challenge" in self.samples_jsonl:
+            # Only the prompt[0]["content"] needs to be updated
+            prompt[0]["content"] += self.kshot_prompt
         if not isinstance(correct_answers, list):
             correct_answers = [correct_answers]
 
