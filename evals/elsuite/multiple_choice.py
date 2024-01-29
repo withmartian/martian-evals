@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse
 from datasets import load_dataset
 from pydantic import BaseModel
 
+
 import evals
 import evals.metrics
 from evals.api import CompletionFn
@@ -32,7 +33,7 @@ def format_example(example, include_answer=True):
     prompt = example["question"]
     for j in range(4):
         prompt += "\n{}. {}".format(get_choices()[j], example["choices"][j])
-    prompt += "\nAnswer: "
+    prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
     if include_answer:
         prompt += "{}\n\n".format(get_choices()[example["answer"]])
     return prompt
@@ -42,7 +43,7 @@ def format_example_hellaswag(example, include_answer=True):
     prompt = example["ctx"]
     for j in range(4):
         prompt += "\n{}. {}".format(get_choices()[j], example["endings"][j])
-    prompt += "\nAnswer: "
+    prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
     if include_answer:
         prompt += "{}\n\n".format(get_choices()[int(example["label"])])
     return prompt
@@ -74,7 +75,7 @@ def get_dataset(url: str) -> list[Sample]:
                 query["split"] = "validation[:1%]"
         else:
             if query.get("split") == "validation":
-                query["split"] = "validation[:5%]"
+                query["split"] = "test[:5%]"
             subject = query.get("name")
             kshot_query = {}
             for key in query:
@@ -92,6 +93,7 @@ def get_dataset(url: str) -> list[Sample]:
                     question=sample["ctx"],
                     answers=sample["endings"],
                     label=int(sample["label"]),
+                    kshot="Choose the most plausible continuation for the story. \n\n"
                 )
                 for sample in dataset
             ]
@@ -109,6 +111,11 @@ def get_dataset(url: str) -> list[Sample]:
 
     raise ValueError(f"Unknown question dataset {url}")
 
+def fuzzy_match(s1, s2):
+    if s1 == "" or s2 == "":
+        return s1 == s2
+
+    return s1 in s2 or s2 in s1
 
 class MultipleChoice(evals.Eval):
     def __init__(
@@ -147,19 +154,30 @@ class MultipleChoice(evals.Eval):
         )
         for j in range(len(sample.answers)):
             prompt += "\n{}. {}".format(get_choices()[j], sample.answers[j])
-        prompt += "\nAnswer: "
+        prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
         result = self.completion_fn(
             prompt=prompt,
             temperature=0.0,
-            max_tokens=1,
+            max_tokens=64,
+            #top_p=1.0,
+            #top_k=50,
         )
         sampled = result.get_completions()[0]
 
-        evals.record_and_check_match(
-            prompt=prompt,
-            sampled=sampled,
+        match = fuzzy_match(sampled, correct_answer)
+
+        evals.record.record_match(
+            match,
             expected=correct_answer,
         )
+        evals.record.record_metrics(
+            accuracy=float(match),
+        )
+        #evals.record_and_check_match(
+        #    prompt=prompt,
+        #    sampled=sampled,
+        #    expected=correct_answer,
+        #)
 
     def run(self, recorder: RecorderBase):
         samples = get_dataset(self.dataset)
