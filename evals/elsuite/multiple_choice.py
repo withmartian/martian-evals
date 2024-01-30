@@ -104,7 +104,7 @@ def get_dataset(url: str) -> list[Sample]:
                     answers=sample["choices"],
                     label=sample["answer"],
                     subject=subject,
-                    kshot=kshot_prompt,
+                    kshot="" #"Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
                 )
                 for sample in dataset
             ]
@@ -147,18 +147,20 @@ class MultipleChoice(evals.Eval):
 
         prompt = (
             sample.kshot
-            #+ "\nPlease answer with the letter of the correct answer."
+            + "Please answer with the letter of the correct answer."
             #+ "\n\n"
+            + "Question: \n\n"
             + sample.question
-            #+ options
+            + "\n\n"
+            + options
         )
-        for j in range(len(sample.answers)):
-            prompt += "\n{}. {}".format(get_choices()[j], sample.answers[j])
-        prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
+        #for j in range(len(sample.answers)):
+        #    prompt += "\n{}. {}".format(get_choices()[j], sample.answers[j])
+        prompt += "\nAnswer:"
         result = self.completion_fn(
             prompt=prompt,
             temperature=0.0,
-            max_tokens=64,
+            max_tokens=8,
             #top_p=1.0,
             #top_k=50,
         )
