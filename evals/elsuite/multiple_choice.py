@@ -53,6 +53,23 @@ def format_example_hellaswag(example, include_answer=True):
     return prompt
 
 
+def format_example_arc(example, include_answer=True):
+    prompt = example["question"]
+    for j in range(4):
+        prompt += "\n{}) {}".format(get_choices()[j], example["choices"]["text"][j])
+    prompt += "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation.\nAnswer:\n"
+    if include_answer:
+        if example["answerKey"] in ["A", "B", "C", "D"]:
+            prompt += "{}\n\n".format(example["answerKey"])
+        else:
+            prompt += "{}\n\n".format(get_choices()[int(example["answerKey"])-1])
+    return prompt
+
+def gen_prompt_arc(train_dataset, k=-1):
+    prompt = "" #f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
+    for i in range(k):
+        prompt += format_example_arc(next(train_dataset))
+    return prompt
 
 def gen_prompt(train_dataset, subject, k=-1):
     prompt = "" #f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
@@ -114,6 +131,15 @@ def get_dataset(url: str) -> list[Sample]:
             kshot_query["split"] = "dev"
             kshot_data = load_dataset(path, **kshot_query)
             kshot_prompt = gen_prompt(iter(kshot_data), subject=subject, k=5)
+        elif path == "ai2_arc":
+            subject = query.get("name")
+            kshot_query = {}
+            for key in query:
+                if key != "split":
+                    kshot_query[key] = query[key]
+            kshot_query["split"] = "train"
+            kshot_data = load_dataset(path, **kshot_query)
+            kshot_prompt = gen_prompt_arc(iter(kshot_data), k=5)
         else:
             if query.get("split") == "validation":
                 query["split"] = "validation"
@@ -159,6 +185,28 @@ def get_dataset(url: str) -> list[Sample]:
                 )
                 for sample in dataset
             ]
+        elif path == "ai2_arc":
+            samples = [
+                Sample(
+                    question=sample["question"],
+                    answers=sample["choices"]["text"],
+                    label=int(ord(sample["answerKey"]))-int(ord("A")),
+                    kshot=kshot_prompt
+                )
+                for sample in dataset
+                if sample["answerKey"] in ["A", "B", "C", "D"]
+            ]
+            samples += [
+                Sample(
+                    question=sample["question"],
+                    answers=sample["choices"]["text"],
+                    label=int(sample["answerKey"])-1,
+                    kshot=kshot_prompt
+                )
+                for sample in dataset
+                if sample["answerKey"] not in ["A", "B", "C", "D", "E"]
+            ]
+            return samples
 
     raise ValueError(f"Unknown question dataset {url}")
 
@@ -242,6 +290,14 @@ class MultipleChoice(evals.Eval):
                     + "\n"
                     + options
                     + "\nPrint only a single choice  from \"A\" or \"B\" without explanation. Answer:"
+            )
+        elif "ai2_arc" in self.dataset:
+            prompt = (
+                    sample.kshot
+                    + sample.question
+                    + "\n"
+                    + options
+                    + "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation.\nAnswer:"
             )
 
         result = self.completion_fn(
