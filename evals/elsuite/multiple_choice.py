@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlparse
 
 from datasets import load_dataset
 from pydantic import BaseModel
-
+import re
 
 import evals
 import evals.metrics
@@ -19,8 +19,10 @@ class Sample(BaseModel):
     kshot: Optional[str] = None
     subject: Optional[str] = None
 
+
 def get_choices():
     return ["A", "B", "C", "D"]
+
 
 def format_subject(subject):
     line = subject.split("_")
@@ -29,11 +31,12 @@ def format_subject(subject):
         s += " " + entry
     return s
 
+
 def format_example(example, include_answer=True):
     prompt = example["question"]
     for j in range(4):
-        prompt += "\n{}. {}".format(get_choices()[j], example["choices"][j])
-    prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
+        prompt += "\n{}) {}".format(get_choices()[j], example["choices"][j])
+    prompt += "\nWhich one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n Answer:\n"
     if include_answer:
         prompt += "{}\n\n".format(get_choices()[example["answer"]])
     return prompt
@@ -75,7 +78,7 @@ def get_dataset(url: str) -> list[Sample]:
                 query["split"] = "validation[:1%]"
         else:
             if query.get("split") == "validation":
-                query["split"] = "test[:5%]"
+                query["split"] = "test"
             subject = query.get("name")
             kshot_query = {}
             for key in query:
@@ -104,12 +107,13 @@ def get_dataset(url: str) -> list[Sample]:
                     answers=sample["choices"],
                     label=sample["answer"],
                     subject=subject,
-                    kshot="" #"Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
+                    kshot="Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
                 )
                 for sample in dataset
             ]
 
     raise ValueError(f"Unknown question dataset {url}")
+
 
 def fuzzy_match(s1, s2):
     if s1 == "" or s2 == "":
@@ -117,14 +121,40 @@ def fuzzy_match(s1, s2):
 
     return s1 in s2 or s2 in s1
 
+
+def exact_match(s1, correct_answer):
+    if s1 == "" or correct_answer == "":
+        return s1 == correct_answer
+    # Strip out all variations of answer
+    s1 = s1.replace("Answer", "")
+    s1 = s1.replace("answer", "")
+    correct_permutations = [correct_answer,
+                            " " + correct_answer,
+                            correct_answer + " ",
+                            " " + correct_answer + " ",
+                            correct_answer + ")",
+                            correct_answer + "\n",
+                            "\n" + correct_answer,
+                            "\n" + correct_answer + "\n"]
+    # I want regex for matching A,B,C,D and optionally a parentheses, space, or newline next to it
+    # Regex for the correct_answer with only spaces, newlines, and parentheses allowed next to it
+    # Regex for only matchines spaces, parentheses, and newlines
+    regex = r"[\s\n\(\)]{,1}[^a-z]" + correct_answer + r"[\s\n\(\)]{,1}[^a-z]"
+    output = re.search(regex, " " + s1 + " ")
+    if output:
+        return True
+    else:
+        return s1 in correct_permutations
+
+
 class MultipleChoice(evals.Eval):
     def __init__(
-        self,
-        completion_fns: list[CompletionFn],
-        dataset: str,
-        *args,
-        instructions: Optional[str] = "",
-        **kwargs,
+            self,
+            completion_fns: list[CompletionFn],
+            dataset: str,
+            *args,
+            instructions: Optional[str] = "",
+            **kwargs,
     ):
         super().__init__(completion_fns, *args, **kwargs)
         assert len(completion_fns) == 1, "MultipleChoice only supports one completion fn"
@@ -146,27 +176,38 @@ class MultipleChoice(evals.Eval):
         )
 
         prompt = (
-            sample.kshot
-            + "Please answer with the letter of the correct answer."
-            #+ "\n\n"
-            + "Question: \n\n"
-            + sample.question
-            + "\n\n"
-            + options
+                sample.kshot
+                + "Please answer with the letter of the correct answer."
+                + "\n\n"
+                + "Question: "
+                + sample.question
+                + "\n\n"
+                + options
+                + "\n\nPrint only a single choice from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer: "
         )
-        #for j in range(len(sample.answers)):
-        #    prompt += "\n{}. {}".format(get_choices()[j], sample.answers[j])
-        prompt += "\nAnswer:"
+        prompt = (
+                self.instructions
+                + "\nPlease answer with the letter of the correct answer."
+                + "\n\n"
+                + sample.question
+                + "\n"
+                + options
+                #+ "\n\nAnswer:"
+        )
+        # for j in range(len(sample.answers)):
+        #    prompt += "\n{}) {}".format(get_choices()[j], sample.answers[j])
+        #prompt += "\nAnswer:"
+        prompt += "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer:"
         result = self.completion_fn(
             prompt=prompt,
             temperature=0.0,
             max_tokens=8,
-            #top_p=1.0,
-            #top_k=50,
+            # top_p=1.0,
+            # top_k=50,
         )
         sampled = result.get_completions()[0]
 
-        match = fuzzy_match(sampled, correct_answer)
+        match = exact_match(sampled, correct_answer)
 
         evals.record.record_match(
             match,
@@ -175,11 +216,11 @@ class MultipleChoice(evals.Eval):
         evals.record.record_metrics(
             accuracy=float(match),
         )
-        #evals.record_and_check_match(
+        # evals.record_and_check_match(
         #    prompt=prompt,
         #    sampled=sampled,
         #    expected=correct_answer,
-        #)
+        # )
 
     def run(self, recorder: RecorderBase):
         samples = get_dataset(self.dataset)
