@@ -70,7 +70,7 @@ for model in "${together_model_names[@]}"; do
 
         time_string=$(date "+%m-%d_%H:%M:%S")
         start_time=$(date +%s)
-        EVALS_THREAD_TIMEOUT=600 NUMEXPR_MAX_THREADS=8 OPENAI_API_KEY=$TOGETHER_API_KEY OPENAI_URL=https://api.together.xyz oaieval $model $eval --record_path=${data_path}/${model}__$eval.jsonl #  > /dev/null 2>&1
+        EVALS_THREAD_TIMEOUT=600 NUMEXPR_MAX_THREADS=8 OPENAI_API_KEY=$TOGETHER_API_KEY OPENAI_URL=https://api.together.xyz/v1 oaieval $model $eval --record_path=${data_path}/${model}__$eval.jsonl #  > /dev/null 2>&1
         # if error
         if [ $? -ne 0 ]; then
             echo "\nCommand failed:"
