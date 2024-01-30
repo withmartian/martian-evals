@@ -3,9 +3,6 @@ winogrande:
   description: Test the model's ability to answer winogrande questions.
   metrics: [accuracy]
 winogrande.dev.v0:
-  class: evals.elsuite.basic.match:Match
+  class: evals.elsuite.multiple_choice:MultipleChoice
   args:
-    samples_jsonl: winogrande/samples_subsampled.jsonl
-    few_shot_jsonl: winogrande/samples_subsampled.jsonl
-    num_few_shot: 5
-    max_tokens: 2048
+    dataset: hf://winogrande?name=winogrande_s&split=validation

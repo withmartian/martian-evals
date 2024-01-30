@@ -136,6 +136,16 @@ class OpenAIChatCompletionFn(CompletionFnSpec):
         prompt = ""
         for msg in openai_create_prompt:
             prompt += msg["content"] + "\n"
+        if "gpt" in self.model or "claude" in self.model:
+            result = openai_chat_completion_create_retrying(
+                OpenAI(api_key=self.api_key, base_url=self.api_base),
+                model=self.model,
+                messages=openai_create_prompt,
+                **{**kwargs, **self.extra_options},
+            )
+            result = OpenAIChatCompletionResult(raw_data=result, prompt=openai_create_prompt)
+            record_sampling(prompt=result.prompt, sampled=result.get_completions())
+            return result
         result = openai_completion_create_retrying(
             OpenAI(api_key=self.api_key, base_url=self.api_base),
             model=self.model,

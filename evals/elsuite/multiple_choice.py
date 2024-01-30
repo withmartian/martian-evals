@@ -33,10 +33,11 @@ def format_subject(subject):
 
 
 def format_example(example, include_answer=True):
-    prompt = example["question"]
+    prompt = "Please answer with the letter of the correct answer.\n\n"
+    prompt += example["question"]
     for j in range(4):
         prompt += "\n{}) {}".format(get_choices()[j], example["choices"][j])
-    prompt += "\nWhich one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n Answer:\n"
+    prompt += "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer:\n"
     if include_answer:
         prompt += "{}\n\n".format(get_choices()[example["answer"]])
     return prompt
@@ -45,24 +46,43 @@ def format_example(example, include_answer=True):
 def format_example_hellaswag(example, include_answer=True):
     prompt = example["ctx"]
     for j in range(4):
-        prompt += "\n{}. {}".format(get_choices()[j], example["endings"][j])
-    prompt += "\nWhich one of the four choices completes the question correctly? Only output A, B, C, or D without explanation. Choice: "
+        prompt += "\n{}) {}".format(get_choices()[j], example["endings"][j])
+    prompt += "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation.\nAnswer:\n"
     if include_answer:
         prompt += "{}\n\n".format(get_choices()[int(example["label"])])
     return prompt
 
 
+
 def gen_prompt(train_dataset, subject, k=-1):
-    prompt = f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
+    prompt = "" #f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
     for i in range(k):
         prompt += format_example(next(train_dataset))
     return prompt
 
 
 def gen_prompt_hellaswag(train_dataset, k=-1):
-    prompt = "Choose the most plausible continuation for the story. \n\nThe following are example stories and continuations (with answers).\n\n"
+    prompt = ""
     for i in range(k):
         prompt += format_example_hellaswag(next(train_dataset))
+    return prompt
+
+
+def format_example_winogrande(example, include_answer=True):
+    prompt = "Please answer with the letter of the correct answer.\n\n"
+    prompt += example["sentence"]
+    prompt += "\n{}) {}".format("A", example["option1"])
+    prompt += "\n{}) {}".format("B", example["option2"])
+    prompt += "\nPrint only a single choice  from \"A\" or \"B\" without explanation. Answer:\n"
+    if include_answer:
+        prompt += "{}\n\n".format(get_choices()[int(example["answer"])-1])
+    return prompt
+
+
+def gen_prompt_winogrande(train_dataset, k=-1):
+    prompt = "" #f"The following are multiple choice questions (with answers) about {format_subject(subject)}.\n\n"
+    for i in range(k):
+        prompt += format_example_winogrande(next(train_dataset))
     return prompt
 
 
@@ -75,8 +95,15 @@ def get_dataset(url: str) -> list[Sample]:
         path = parsed.netloc
         if path == "hellaswag":
             if query.get("split") == "validation":
-                query["split"] = "validation[:1%]"
-        else:
+                query["split"] = "validation"
+            kshot_query = {}
+            for key in query:
+                if key != "split":
+                    kshot_query[key] = query[key]
+            kshot_query["split"] = "train"
+            kshot_data = load_dataset(path, **kshot_query)
+            kshot_prompt = gen_prompt_hellaswag(iter(kshot_data), k=5)
+        elif path == "hendrycks_test":
             if query.get("split") == "validation":
                 query["split"] = "test"
             subject = query.get("name")
@@ -87,6 +114,17 @@ def get_dataset(url: str) -> list[Sample]:
             kshot_query["split"] = "dev"
             kshot_data = load_dataset(path, **kshot_query)
             kshot_prompt = gen_prompt(iter(kshot_data), subject=subject, k=5)
+        else:
+            if query.get("split") == "validation":
+                query["split"] = "validation"
+            subject = query.get("name")
+            kshot_query = {}
+            for key in query:
+                if key != "split":
+                    kshot_query[key] = query[key]
+            kshot_query["split"] = "train"
+            kshot_data = load_dataset(path, **kshot_query)
+            kshot_prompt = gen_prompt_winogrande(iter(kshot_data), k=5)
 
         dataset = load_dataset(path, **query)
 
@@ -96,7 +134,7 @@ def get_dataset(url: str) -> list[Sample]:
                     question=sample["ctx"],
                     answers=sample["endings"],
                     label=int(sample["label"]),
-                    kshot="Choose the most plausible continuation for the story. \n\n"
+                    kshot=kshot_prompt,
                 )
                 for sample in dataset
             ]
@@ -107,7 +145,17 @@ def get_dataset(url: str) -> list[Sample]:
                     answers=sample["choices"],
                     label=sample["answer"],
                     subject=subject,
-                    kshot="Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
+                    kshot=kshot_prompt # "Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
+                )
+                for sample in dataset
+            ]
+        elif path == "winogrande":
+            return [
+                Sample(
+                    question=sample["sentence"],
+                    answers=[sample["option1"], sample["option2"]],
+                    label=int(sample["answer"])-1, # A or B, instead of 1 or 2
+                    kshot=kshot_prompt # "Which one of the four choices completes the question correctly? Print only a single choice from \"A\" or \"B\" or \"C\" or \"D\" (without quotes or punctuation) corresponding to the correct answer without explanation. For example, if the answer is \"A\", then the output should be:\nAnswer:\nA\n\n",
                 )
                 for sample in dataset
             ]
@@ -161,10 +209,7 @@ class MultipleChoice(evals.Eval):
         self.dataset = dataset
         self.instructions = instructions
         if "hellaswag" in self.dataset:
-            dataset = load_dataset("hellaswag", split="train")
-            self.instructions = gen_prompt_hellaswag(iter(dataset), k=10)
-        else:
-            self.instructions = self.instructions
+            self.instructions = "" #"Choose the most plausible continuation for the story. \n\n"
 
     def eval_sample(self, sample, rng):
         assert isinstance(sample, Sample)
@@ -174,36 +219,35 @@ class MultipleChoice(evals.Eval):
             correct_idx=sample.label,
             rng=rng,
         )
-
         prompt = (
                 sample.kshot
-                + "Please answer with the letter of the correct answer."
-                + "\n\n"
-                + "Question: "
-                + sample.question
-                + "\n\n"
-                + options
-                + "\n\nPrint only a single choice from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer: "
-        )
-        prompt = (
-                self.instructions
-                + "\nPlease answer with the letter of the correct answer."
-                + "\n\n"
+                + "Please answer with the letter of the correct answer.\n\n"
                 + sample.question
                 + "\n"
                 + options
-                #+ "\n\nAnswer:"
+                + "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer:"
         )
-        # for j in range(len(sample.answers)):
-        #    prompt += "\n{}) {}".format(get_choices()[j], sample.answers[j])
-        #prompt += "\nAnswer:"
-        prompt += "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation. Answer:"
+        if "hellaswag" in self.dataset:
+            prompt = (
+                sample.kshot
+                + sample.question
+                + "\n"
+                + options
+                + "\nPrint only a single choice  from \"A\" or \"B\" or \"C\" or \"D\" without explanation.\nAnswer:"
+            )
+        elif "winogrande" in self.dataset:
+            prompt = (
+                    sample.kshot
+                    + sample.question
+                    + "\n"
+                    + options
+                    + "\nPrint only a single choice  from \"A\" or \"B\" without explanation. Answer:"
+            )
+
         result = self.completion_fn(
             prompt=prompt,
             temperature=0.0,
-            max_tokens=8,
-            # top_p=1.0,
-            # top_k=50,
+            max_tokens=2,
         )
         sampled = result.get_completions()[0]
 
