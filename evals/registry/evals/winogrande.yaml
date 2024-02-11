@@ -6,3 +6,12 @@ winogrande.dev.v0:
   class: evals.elsuite.multiple_choice:MultipleChoice
   args:
     dataset: hf://winogrande?name=winogrande_s&split=validation
+
+winogrande-train:
+  id: winogrande.train.v0
+  description: Test the model's ability to answer winogrande questions.
+  metrics: [accuracy]
+winogrande.train.v0:
+  class: evals.elsuite.multiple_choice:MultipleChoice
+  args:
+    dataset: hf://winogrande?name=winogrande_s&split=train
