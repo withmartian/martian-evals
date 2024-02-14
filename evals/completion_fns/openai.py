@@ -127,31 +127,17 @@ class OpenAIChatCompletionFn(CompletionFnSpec):
 
         openai_create_prompt: OpenAICreateChatPrompt = prompt.to_formatted_prompt()
         # change the "role": "system" to "role": "user"
-        for i in range(len(openai_create_prompt)):
-            if openai_create_prompt[i]["role"] == "system":
-                openai_create_prompt[i]["role"] = "user"
-            elif openai_create_prompt[i]["role"] == "assistant":
-                openai_create_prompt[i]["role"] = "user"
-        # Make it a single string as the prompt, so append the messages together
-        prompt = ""
-        for msg in openai_create_prompt:
-            prompt += msg["content"] + "\n"
-        if "gpt" in self.model or "claude" in self.model:
-            result = openai_chat_completion_create_retrying(
-                OpenAI(api_key=self.api_key, base_url=self.api_base),
-                model=self.model,
-                messages=openai_create_prompt,
-                **{**kwargs, **self.extra_options},
-            )
-            result = OpenAIChatCompletionResult(raw_data=result, prompt=openai_create_prompt)
-            record_sampling(prompt=result.prompt, sampled=result.get_completions())
-            return result
-        result = openai_completion_create_retrying(
+        #for i in range(len(openai_create_prompt)):
+        #    if openai_create_prompt[i]["role"] == "system":
+        #        openai_create_prompt[i]["role"] = "user"
+        #    elif openai_create_prompt[i]["role"] == "assistant":
+        #        openai_create_prompt[i]["role"] = "user"
+        result = openai_chat_completion_create_retrying(
             OpenAI(api_key=self.api_key, base_url=self.api_base),
             model=self.model,
-            prompt=prompt,
+            messages=openai_create_prompt,
             **{**kwargs, **self.extra_options},
         )
-        result = OpenAICompletionResult(raw_data=result, prompt=prompt)
+        result = OpenAIChatCompletionResult(raw_data=result, prompt=openai_create_prompt)
         record_sampling(prompt=result.prompt, sampled=result.get_completions())
         return result
